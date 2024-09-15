@@ -44,14 +44,17 @@ var tasks = map[string]Task{
 // Ниже напишите обработчики для каждого эндпоинта
 
 // Получить все таски
-func getAllTasks(w http.ResponseWriter, r *http.Request) {
-	if tasks, err := json.Marshal(tasks); err != nil {
+func getTasks(w http.ResponseWriter, r *http.Request) {
+	tasks, err := json.Marshal(tasks)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write(tasks)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if _, err = w.Write(tasks); err != nil {
+		fmt.Printf("error on response: %s", err.Error())
 	}
 }
 
@@ -77,12 +80,17 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 }
 
 // Добавить новый таск
-func postTask(w http.ResponseWriter, r *http.Request) {
+func addTask(w http.ResponseWriter, r *http.Request) {
 	var task Task
 	var buf bytes.Buffer
 
 	if _, err := buf.ReadFrom(r.Body); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if _, ok := tasks[task.ID]; ok {
+		http.Error(w, "task with id "+task.ID+" exists", http.StatusBadRequest)
 		return
 	}
 
@@ -115,9 +123,9 @@ func main() {
 	r := chi.NewRouter()
 
 	// здесь регистрируйте ваши обработчики
-	r.Get("/tasks", getAllTasks)
+	r.Get("/tasks", getTasks)
 	r.Get("/tasks/{id}", getTask)
-	r.Post("/tasks", postTask)
+	r.Post("/tasks", addTask)
 	r.Delete("/tasks/{id}", deleteTask)
 
 	if err := http.ListenAndServe(":8080", r); err != nil {
